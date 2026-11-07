@@ -1,0 +1,38 @@
+name: Обновить ленту Telegram
+
+# Раз в сутки забирает последние посты канала и вставляет их в index.html.
+# Если постов нет или Telegram недоступен — файл не меняется, коммита не будет.
+# Запустить вручную: Actions → «Обновить ленту Telegram» → Run workflow.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  feed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Вставить свежие посты в index.html
+        run: python3 tg-feed.py --patch index.html
+
+      - name: Закоммитить, если что-то изменилось
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "Лента без изменений — коммит не нужен."
+            exit 0
+          fi
+          git config user.name "tg-feed-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git commit -m "Лента Telegram: свежие посты"
+          git push
